@@ -211,42 +211,31 @@ static inline void blit_normal(bitmap_t *bmp, uint8_t *framebuffer) {
         memcpy(dest, row, bmp->width);
     }
 }
+
 static inline void blit_nearest(bitmap_t *bmp, uint8_t *framebuffer) {
     int w1 = bmp->width;
     int h1 = bmp->height;
-    int w2 = 320;
+    int w2 = WIDTH;
     int h2 = h1;
 
-    int x_ratio = (int)((w1<<16)/w2) +1;
-    int y_ratio = (int)((h1<<16)/h2) +1;
-    int hpad = 0;
-    int x1, x2;
-
-    // This could be faster:
-    // As we are only scaling on X all the Y stuff is not really
-    // required.
-
-// baseline
-// Blit: 13240 us
-
-// y2=i
-// Blit: 12124 us
-
-// Blit: 8868 us
-// Blit: 8837 us
-
+    // Blit: 5581 us
+    // This can still be improved quite a bit by using aligned accesses.
 
     PROFILING_INIT(t_blit);
     PROFILING_START(t_blit);
 
+    int ctr = 0;
     for (int y = 0; y < h2; y++) {
         uint8_t  *src_row  = bmp->line[y];
         uint8_t *dest_row = &framebuffer[y * w2];
-        int x2 = hpad;
-        for (int x = 0; x < w2; x++) {
-            x1 = ((x * x_ratio) >> 16);
-            uint8_t b2 = src_row[x1];
+        int x2 = 0;
+        for (int x = 0; x < w1; x++) {
+            uint8_t b2 = src_row[x];
             dest_row[x2++] = b2;
+            if (ctr++ == 4) {
+                ctr = 0;
+                dest_row[x2++] = b2;
+            }
         }
     }
 
