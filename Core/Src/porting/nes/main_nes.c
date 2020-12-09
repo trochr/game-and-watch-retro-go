@@ -8,6 +8,7 @@
 #include <nes_state.h>
 #include <nes_input.h>
 #include <osd.h>
+#include "main.h"
 #include "gw_buttons.h"
 #include "gw_lcd.h"
 #include "gw_linker.h"
@@ -31,6 +32,7 @@ typedef enum {
 #error "Only supports LCD LUT8 mode."
 #endif
 
+#define BLIT_NEAREST
 #ifdef BLIT_NEAREST
 #define blit blit_nearest
 #else
@@ -218,21 +220,41 @@ static inline void blit_nearest(bitmap_t *bmp, uint8_t *framebuffer) {
     int x_ratio = (int)((w1<<16)/w2) +1;
     int y_ratio = (int)((h1<<16)/h2) +1;
     int hpad = 0;
-    int x2, y2 ;
+    int x1, x2;
 
     // This could be faster:
     // As we are only scaling on X all the Y stuff is not really
     // required.
 
-    for (int i=0;i<h2;i++) {
-        for (int j=0;j<w2;j++) {
-            x2 = ((j*x_ratio)>>16) ;
-            y2 = ((i*y_ratio)>>16) ;
-            uint8_t *row = bmp->line[y2];
-            uint16_t b2 = row[x2];
-            framebuffer[(i*WIDTH)+j+hpad] = b2;
+// baseline
+// Blit: 13240 us
+
+// y2=i
+// Blit: 12124 us
+
+// Blit: 8868 us
+// Blit: 8837 us
+
+
+    PROFILING_INIT(t_blit);
+    PROFILING_START(t_blit);
+
+    for (int y = 0; y < h2; y++) {
+        uint8_t  *src_row  = bmp->line[y];
+        uint8_t *dest_row = &framebuffer[y * w2];
+        int x2 = hpad;
+        for (int x = 0; x < w2; x++) {
+            x1 = ((x * x_ratio) >> 16);
+            uint8_t b2 = src_row[x1];
+            dest_row[x2++] = b2;
         }
     }
+
+    PROFILING_END(t_blit);
+
+#ifdef PROFILING_ENABLED
+    printf("Blit: %d us\n", (1000000 * PROFILING_DIFF(t_blit)) / t_blit_t0.SecondFraction);
+#endif
 }
 
 void osd_blitscreen(bitmap_t *bmp)
