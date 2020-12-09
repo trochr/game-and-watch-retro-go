@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "main.h"
+#include "bilinear.h"
 #include "gw_lcd.h"
 #include "gw_linker.h"
 #include "gnuboy/loader.h"
@@ -146,6 +147,80 @@ static inline void screen_blit(void) {
     active_framebuffer = active_framebuffer ? 0 : 1;
     HAL_LTDC_Reload(&hltdc, LTDC_RELOAD_VERTICAL_BLANKING);
 }
+
+static void screen_blit_bilinear(void) {
+    static uint32_t lastFPSTime = 0;
+    static uint32_t lastTime = 0;
+    static uint32_t frames = 0;
+    uint32_t currentTime = HAL_GetTick();
+    uint32_t delta = currentTime - lastFPSTime;
+
+    frames++;
+
+    if (delta >= 1000) {
+        int fps = (10000 * frames) / delta;
+        printf("FPS: %d.%d, frames %d, delta %d ms, skipped %d\n", fps / 10, fps % 10, delta, frames, skippedFrames);
+        frames = 0;
+        skippedFrames = 0;
+        lastFPSTime = currentTime;
+    }
+
+    lastTime = currentTime;
+
+    int w1 = currentUpdate->width;
+    int h1 = currentUpdate->height;
+    // int w2 = 266;
+    // int h2 = 240;
+
+    int w2 = 320;
+    int h2 = 216;
+
+    int x_ratio = (int)((w1<<16)/w2) +1;
+    int y_ratio = (int)((h1<<16)/h2) +1;
+    int hpad = 0;
+    //int x_ratio = (int)((w1<<16)/w2) ;
+    //int y_ratio = (int)((h1<<16)/h2) ;
+    int x2, y2 ;
+    uint16_t* screen_buf = (uint16_t*)currentUpdate->buffer;
+    uint16_t *dest = active_framebuffer ? framebuffer2 : framebuffer1;
+
+
+    image_t dst_img;
+    dst_img.w = 320;
+    dst_img.h = 240;
+    dst_img.bpp = 2;
+    dst_img.pixels = dest;
+
+
+    image_t src_img;
+    src_img.w = currentUpdate->width;
+    src_img.h = currentUpdate->height;
+    src_img.bpp = 2;
+    src_img.pixels = currentUpdate->buffer;
+
+    float x_scale = ((float) w2) / ((float) w1);
+    float y_scale = ((float) h2) / ((float) h1);
+
+
+
+
+    PROFILING_INIT(t_blit);
+    PROFILING_START(t_blit);
+
+    imlib_draw_image(&dst_img, &src_img, hpad, 0, x_scale, y_scale, NULL, -1, 255, NULL,
+                     NULL, IMAGE_HINT_BILINEAR, NULL, NULL);
+
+    PROFILING_END(t_blit);
+
+#ifdef PROFILING_ENABLED
+    printf("Blit: %d us\n", (1000000 * PROFILING_DIFF(t_blit)) / t_blit_t0.SecondFraction);
+#endif
+
+    active_framebuffer = active_framebuffer ? 0 : 1;
+    HAL_LTDC_Reload(&hltdc, LTDC_RELOAD_VERTICAL_BLANKING);
+}
+
+
 
 void HAL_LTDC_ReloadEventCallback (LTDC_HandleTypeDef *hltdc) {
     if (active_framebuffer == 0) {
@@ -354,7 +429,8 @@ void app_main(void)
   	fb.ptr = currentUpdate->buffer;
   	fb.enabled = 1;
     fb.byteorder = 1;
-    fb.blit_func = &screen_blit;
+    // fb.blit_func = &screen_blit;
+    fb.blit_func = &screen_blit_bilinear;
 
     // Audio
     memset(audiobuffer_emulator, 0, sizeof(audiobuffer_emulator));
