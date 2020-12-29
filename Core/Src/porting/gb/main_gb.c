@@ -51,7 +51,7 @@ static bool saveSRAM = false;
 static int  saveSRAM_Timer = 0;
 
 // 3 pages
-uint8_t state_save_buffer[192 * 1024] __attribute__((section (".emulator_data")));
+uint8_t state_save_buffer[192 * 1024];
 
 
 // --- MAIN
@@ -486,26 +486,9 @@ void pcm_submit() {
     }
 }
 
-bool odroid_netplay_quick_start(void)
-{
-    return true;
-}
+rg_app_desc_t * init(uint8_t load_state) {
+    odroid_gamepad_state_t joystick;
 
-// TODO: Move to own file
-void odroid_audio_mute(bool mute)
-{
-    if (mute) {
-        for (int i = 0; i < sizeof(audiobuffer_dma) / sizeof(audiobuffer_dma[0]); i++) {
-            audiobuffer_dma[i] = 0;
-        }
-    }
-
-    audio_mute = mute;
-}
-
-
-rg_app_desc_t * init(uint8_t load_state)
-{
     odroid_system_init(APP_ID, AUDIO_SAMPLE_RATE);
     odroid_system_emu_init(&LoadState, &SaveState, &netplay_callback);
 

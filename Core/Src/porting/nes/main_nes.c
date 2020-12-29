@@ -37,10 +37,9 @@ static bool autoload = false;
 
 
 // if i counted correctly this should max be 23077
-uint8_t nes_save_buffer[24000] __attribute__((section (".emulator_data")));
-
 // TODO: Expose properly
 extern int nes_state_save(uint8_t *flash_ptr, size_t size);
+char nes_save_buffer[24000];
 
 static bool SaveState(char *pathName)
 {

@@ -9,18 +9,17 @@ OPT = -O2 -ggdb3
 ifneq ($(strip $(VERBOSE)),1)
 V = @
 endif
-
 ######################################
 # source
 ######################################
 # C sources
 C_SOURCES =  \
+Core/Src/porting/nes/common.c \
 Core/Src/bilinear.c \
 Core/Src/gw_buttons.c \
 Core/Src/gw_flash.c \
 Core/Src/gw_lcd.c \
 Core/Src/main.c \
-Core/Src/porting/gb/main_gb.c \
 Core/Src/porting/odroid_audio.c \
 Core/Src/porting/odroid_display.c \
 Core/Src/porting/odroid_input.c \
@@ -28,9 +27,13 @@ Core/Src/porting/odroid_netplay.c \
 Core/Src/porting/odroid_overlay.c \
 Core/Src/porting/odroid_sdcard.c \
 Core/Src/porting/odroid_system.c \
+Core/Src/porting/crc32.c \
 Core/Src/stm32h7xx_hal_msp.c \
 Core/Src/stm32h7xx_it.c \
-Core/Src/system_stm32h7xx.c \
+Core/Src/system_stm32h7xx.c
+
+GNUBOY_C_SOURCES = \
+Core/Src/porting/gb/main_gb.c \
 retro-go-stm32/gnuboy-go/components/gnuboy/cpu.c \
 retro-go-stm32/gnuboy-go/components/gnuboy/debug.c \
 retro-go-stm32/gnuboy-go/components/gnuboy/emu.c \
@@ -40,10 +43,11 @@ retro-go-stm32/gnuboy-go/components/gnuboy/loader.c \
 retro-go-stm32/gnuboy-go/components/gnuboy/mem.c \
 retro-go-stm32/gnuboy-go/components/gnuboy/rtc.c \
 retro-go-stm32/gnuboy-go/components/gnuboy/sound.c \
-Core/Src/porting/crc32.c \
-Core/Src/porting/nes/common.c \
+
+NES_C_SOURCES = \
 Core/Src/porting/nes/main_nes.c \
 Core/Src/porting/nes/nofrendo_stm32.c \
+retro-go-stm32/nofrendo-go/components/nofrendo/bitmap.c \
 retro-go-stm32/nofrendo-go/components/nofrendo/cpu/dis6502.c \
 retro-go-stm32/nofrendo-go/components/nofrendo/cpu/nes6502.c \
 retro-go-stm32/nofrendo-go/components/nofrendo/mappers/map000.c \
@@ -98,13 +102,34 @@ retro-go-stm32/nofrendo-go/components/nofrendo/nes/nes_rom.c \
 retro-go-stm32/nofrendo-go/components/nofrendo/nes/nes_state.c \
 retro-go-stm32/nofrendo-go/components/nofrendo/nes/nes.c
 
+SMSPLUSGX_C_SOURCES = \
+retro-go-stm32/smsplusgx-go/components/smsplus/loadrom.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/render.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/sms.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/state.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/vdp.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/pio.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/tms.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/memz80.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/system.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/cpu/z80.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/sound/emu2413.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/sound/fmintf.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/sound/sn76489.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/sound/sms_sound.c \
+retro-go-stm32/smsplusgx-go/components/smsplus/sound/ym2413.c \
+Core/Src/porting/smsplusgx/main_smsplusgx.c
+
 C_INCLUDES +=  \
 -Iretro-go-stm32/nofrendo-go/components/nofrendo/cpu \
 -Iretro-go-stm32/nofrendo-go/components/nofrendo/mappers \
 -Iretro-go-stm32/nofrendo-go/components/nofrendo/nes \
 -Iretro-go-stm32/nofrendo-go/components/nofrendo \
 -Iretro-go-stm32/components/odroid \
--Iretro-go-stm32/gnuboy-go/components
+-Iretro-go-stm32/gnuboy-go/components \
+-Iretro-go-stm32/smsplusgx-go/components/smsplus \
+-Iretro-go-stm32/smsplusgx-go/components/smsplus/cpu \
+-Iretro-go-stm32/smsplusgx-go/components/smsplus/sound
 
 
 C_DEFS += \
@@ -115,11 +140,391 @@ C_DEFS += \
 #REQUIRED_FILE=roms/gb/loaded_gb_rom.c
 #REQUIRED_FILE_MSG=Please run ./update_gb_rom.sh to import a GB ROM file
 
-include Makefile.common
 
+######################################
+# building variables
+######################################
+# debug build?
+DEBUG ?= 1
+# optimization
+OPT ?= -Og
+
+CHECK_DIRTY_SUBMODULE ?= 1
+
+#######################################
+# paths
+#######################################
+# Build path
+BUILD_DIR ?= build_$(TARGET)
+
+
+
+# Common C sources
+C_SOURCES +=  \
+retro-go-stm32/components/lupng/lupng.c \
+retro-go-stm32/components/miniz/miniz.c \
+retro-go-stm32/retro-go/main/gui.c \
+Core/Src/porting/gw_alloc.c \
+Core/Src/retro-go/rg_main.c \
+Core/Src/retro-go/rg_emulators.c \
+Core/Src/retro-go/rom_manager.c \
+Core/Src/porting/odroid_settings.c \
+Core/Src/retro-go/bitmaps/header_gb.c \
+Core/Src/retro-go/bitmaps/header_nes.c \
+Core/Src/retro-go/bitmaps/header_sms.c \
+Core/Src/retro-go/bitmaps/logo_gb.c \
+Core/Src/retro-go/bitmaps/logo_nes.c \
+Core/Src/retro-go/bitmaps/logo_sms.c
+
+
+# Version and URL for the STM32CubeH7 SDK
+SDK_VERSION ?= v1.8.0
+SDK_URL ?= https://raw.githubusercontent.com/STMicroelectronics/STM32CubeH7
+
+# Local path for the SDK
+SDK_DIR ?= Drivers
+
+
+
+# SDK C sources
+SDK_C_SOURCES =  \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_cortex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dac_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dac.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_exti.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_gpio.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_hsem.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_ltdc_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_ltdc.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_ospi.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sai_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sai.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_spi_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_spi.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.c \
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal.c \
+
+
+# SDK ASM sources
+SDK_ASM_SOURCES =  \
+Drivers/CMSIS/Device/ST/STM32H7xx/Source/Templates/gcc/startup_stm32h7b0xx.s
+
+# SDK headers
+SDK_HEADERS = \
+Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h7b0xx.h \
+Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h7xx.h \
+Drivers/CMSIS/Device/ST/STM32H7xx/Include/system_stm32h7xx.h \
+Drivers/CMSIS/Include/cmsis_compiler.h \
+Drivers/CMSIS/Include/cmsis_gcc.h \
+Drivers/CMSIS/Include/cmsis_version.h \
+Drivers/CMSIS/Include/core_cm7.h \
+Drivers/CMSIS/Include/mpu_armv7.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_cortex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_dac_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_dac.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_def.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_dma_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_dma.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_exti.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_gpio_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_gpio.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_hsem.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_i2c_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_i2c.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_ltdc_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_ltdc.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_mdma.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_ospi.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rcc_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rcc.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rtc_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rtc.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_sai_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_sai.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_spi_ex.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_spi.h \
+Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h \
+
+
+#######################################
+# binaries
+#######################################
+PREFIX = arm-none-eabi-
+# The gcc compiler bin path can be either defined in make command via GCC_PATH variable (> make GCC_PATH=xxx)
+# either it can be added to the PATH environment variable.
+ifdef GCC_PATH
+CC = $(GCC_PATH)/$(PREFIX)gcc
+AS = $(GCC_PATH)/$(PREFIX)gcc -x assembler-with-cpp
+CP = $(GCC_PATH)/$(PREFIX)objcopy
+SZ = $(GCC_PATH)/$(PREFIX)size
+else
+CC = $(PREFIX)gcc
+AS = $(PREFIX)gcc -x assembler-with-cpp
+CP = $(PREFIX)objcopy
+SZ = $(PREFIX)size
+endif
+HEX = $(CP) -O ihex
+BIN = $(CP) -O binary -S
+ECHO = echo
+
+#######################################
+# CFLAGS
+#######################################
+# cpu
+CPU = -mcpu=cortex-m7
+
+# fpu
+FPU = -mfpu=fpv5-d16
+
+# float-abi
+FLOAT-ABI = -mfloat-abi=hard
+
+# mcu
+MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
+
+# macros for gcc
+# AS defines
+AS_DEFS +=
+
+# C defines
+C_DEFS +=  \
+-DUSE_HAL_DRIVER \
+-DSTM32H7B0xx \
+-DVECT_TAB_ITCM \
+-DIS_LITTLE_ENDIAN \
+-D_FORTIFY_SOURCE=1 \
+-DDEBUG_RG_ALLOC \
+-DMINIZ_NO_TIME
+
+# AS includes
+AS_INCLUDES +=
+
+# C includes
+C_INCLUDES +=  \
+-ICore/Inc \
+-ICore/Src/porting/gb \
+-ICore/Src/porting/nes \
+-ICore/Src/retro-go \
+-IDrivers/STM32H7xx_HAL_Driver/Inc \
+-IDrivers/STM32H7xx_HAL_Driver/Inc/Legacy \
+-IDrivers/CMSIS/Device/ST/STM32H7xx/Include \
+-IDrivers/CMSIS/Include \
+-Iretro-go-stm32/components/miniz \
+-Iretro-go-stm32/components/lupng \
+
+# compile gcc flags
+ASFLAGS += $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+
+CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+
+ifeq ($(DEBUG), 1)
+CFLAGS += -g -gdwarf-2
+endif
+
+
+# Generate dependency information
+CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
+
+
+#######################################
+# LDFLAGS
+#######################################
+# link script
+LDSCRIPT ?= STM32H7B0VBTx_FLASH.ld
+
+# libraries
+LIBS = -lc -lm -lnosys
+LIBDIR +=
+LDFLAGS += $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
+
+# default action: build all
+all: $(BUILD_DIR) $(BUILD_DIR)/nes $(BUILD_DIR)/gnuboy $(BUILD_DIR)/smsplusgx $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET)_extflash.bin
+
+#$(REQUIRED_FILE):
+#	$(error $(REQUIRED_FILE_MSG))
+
+#######################################
+# build the application
+#######################################
+# list of objects
+OBJECTS = $(addprefix $(BUILD_DIR)/core/,$(notdir $(C_SOURCES:.c=.o) $(SDK_C_SOURCES:.c=.o)))
+GNUBOY_OBJECTS = $(addprefix $(BUILD_DIR)/gnuboy/,$(notdir $(GNUBOY_C_SOURCES:.c=.o)))
+NES_OBJECTS = $(addprefix $(BUILD_DIR)/nes/,$(notdir $(NES_C_SOURCES:.c=.o)))
+SMSPLUSGX_OBJECTS = $(addprefix $(BUILD_DIR)/smsplusgx/, $(notdir $(SMSPLUSGX_C_SOURCES:.c=.o)))
+
+vpath %.c $(sort $(dir $(C_SOURCES) $(NES_C_SOURCES) $(GNUBOY_C_SOURCES) $(SMSPLUSGX_C_SOURCES) $(SDK_C_SOURCES)))
+# list of ASM program objects
+OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(SDK_ASM_SOURCES:.s=.o)))
+vpath %.s $(sort $(dir $(SDK_ASM_SOURCES)))
+
+# function used to generate prerequisite rules for SDK objects
+define sdk_obj_prereq_gen
+$(BUILD_DIR)/$(patsubst %.c,%.o,$(patsubst %.s,%.o,$(notdir $1))): $1
+
+endef
+# note: the blank line above is intentional
+
+# generate all object prerequisite rules
+$(eval $(foreach obj,$(SDK_C_SOURCES) $(SDK_ASM_SOURCES),$(call sdk_obj_prereq_gen,$(obj))))
+
+Core/Inc/githash.h:
+	$(V)./githash.sh > $@
+.PHONY: Core/Inc/githash.h
+
+Core/Src/main.c: Core/Inc/githash.h
+Core/Src/retro-go/rg_main.c: Core/Inc/githash.h
+
+ifeq (${CHECK_DIRTY_SUBMODULE},1)
+CheckDirtySubmodules:
+	$(V)git submodule foreach "git diff --quiet" 2> /dev/null || \
+		(echo -e "\n\n\nYou are using dirty submodules.\nPlease sync the submodules by running 'git submodule update --init'\n\n(You may set CHECK_DIRTY_SUBMODULE=0 to suppress this warning)\n\n\n" && exit 1)
+else
+CheckDirtySubmodules:
+endif
+.PHONY: CheckDirtySubmodules
+
+# $(BUILD_DIR)/%.o: %.c Makefile $(LDSCRIPT) $(SDK_HEADERS) | $(BUILD_DIR) CheckDirtySubmodules
+# 	$(V)$(ECHO) [ CC ] $(notdir $<)
+# 	$(V)$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
+
+# $(BUILD_DIR)/%.o: %.s Makefile $(LDSCRIPT) | $(BUILD_DIR) CheckDirtySubmodules
+# 	$(V)$(ECHO) [ AS ] $(notdir $<)
+# 	$(V)$(AS) -c $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) $(NES_OBJECTS) $(GNUBOY_OBJECTS) $(SMSPLUSGX_OBJECTS) Makefile $(LDSCRIPT)
+	$(V)$(ECHO) [ LD ] $(notdir $@)
+	$(V)$(CC) $(OBJECTS) $(NES_OBJECTS) $(GNUBOY_OBJECTS) $(SMSPLUSGX_OBJECTS) $(LDFLAGS) -o $@
+	$(V)$(SZ) $@
+	$(V)./size.sh $@
+
+$(BUILD_DIR)/core/%.o: %.c Core/Inc/githash.h
+	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
+
+$(BUILD_DIR)/nes/%.o: %.c
+	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/nes/$(notdir $(<:.c=.lst)) $< -o $@
+
+$(BUILD_DIR)/gnuboy/%.o: %.c
+	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/gnuboy/$(notdir $(<:.c=.lst)) $< -o $@
+
+$(BUILD_DIR)/smsplusgx/%.o: %.c
+	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/smsplusgx/$(notdir $(<:.c=.lst)) $< -o $@
+
+$(BUILD_DIR)/%.o: %.s $(LDSCRIPT) | $(BUILD_DIR)
+	$(AS) -c $(CFLAGS) $< -o $@
+
+# $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) $(NES_OBJECTS) $(GNUBOY_OBJECTS) $(SMSPLUSGX_OBJECTS) $(LDSCRIPT)
+# 	$(CC) $(OBJECTS) $(NES_OBJECTS) $(GNUBOY_OBJECTS) $(SMSPLUSGX_OBJECTS) $(LDFLAGS) -o $@
+# 	$(SZ) $@
+# 	./size.sh $@
+
+$(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
+	$(V)$(ECHO) [ HEX ] $(notdir $@)
+	$(V)$(HEX) $< $@
+
+$(BUILD_DIR):
+	$(V)mkdir $@
+	mkdir $@/core
+	mkdir $@/nes
+	mkdir $@/gnuboy
+	mkdir $@/smsplusgx
+
+
+#######################################
+# Flashing
+#######################################
+
+OPENOCD ?= openocd
+OCDIFACE ?= interface/jlink.cfg
+TRANSPORT ?= swd
+
+# Starts openocd and attaches to the target. To be used with 'flashx' and 'gdb'
+openocd:
+	$(OPENOCD) -f $(OCDIFACE) -c "transport select $(TRANSPORT)" -f "target/stm32h7x.cfg" -c "reset_config none; init; halt"
+.PHONY: openocd
+
+
+# Flashes using a new openocd instance
+flash: $(BUILD_DIR)/$(TARGET).elf
+	$(OPENOCD) -f $(OCDIFACE) -c "transport select $(TRANSPORT)" -f "target/stm32h7x.cfg" -c "reset_config none; program $(BUILD_DIR)/$(TARGET).elf reset exit"
+.PHONY: flash
+
+
+# Flash without building or so
+jflash:
+	$(OPENOCD) -f $(OCDIFACE) -c "transport select $(TRANSPORT)" -f "target/stm32h7x.cfg" -c "reset_config none; program $(BUILD_DIR)/$(TARGET).elf reset exit"
+.PHONY: jflash
+
+
+# Flashes using an existing openocd instance
+flashx: $(BUILD_DIR)/$(TARGET).elf
+	echo "reset_config none; program $(BUILD_DIR)/$(TARGET).elf; reset run; exit" | nc localhost 4444
+.PHONY: flashx
+
+
+FLASHLOADER ?= ../game-and-watch-flashloader/flash_multi.sh
+flash_extmem: $(BUILD_DIR)/$(TARGET)_extflash.bin
+	$(FLASHLOADER) $(BUILD_DIR)/$(TARGET)_extflash.bin
+.PHONY: flash_extmem
+
+
+# Programs both the external and internal flash.
+flash_all:
+	$(MAKE) -f Makefile flash_extmem
+	$(MAKE) -f Makefile flash
+.PHONY: flash_all
+
+
+GDB ?= $(PREFIX)gdb
+gdb: $(BUILD_DIR)/$(TARGET).elf
+	$(GDB) $< -ex "target extended-remote :3333"
+.PHONY: gdb
+
+
+#######################################
+# download SDK files
+#######################################
+$(SDK_DIR)/%:
+	$(V)$(ECHO) [ WGET ] $(notdir $@)
+	$(V)wget -q $(SDK_URL)/$(SDK_VERSION)/$@ -P $(dir $@)
+
+.PHONY: download_sdk
+download_sdk: $(SDK_HEADERS) $(SDK_C_SOURCES) $(SDK_ASM_SOURCES)
+
+#######################################
+# clean up
+#######################################
+clean:
+	$(V)$(ECHO) [ RM ] $(BUILD_DIR)
+	$(V)-rm -fR $(BUILD_DIR)
+
+distclean: clean
+	$(V)$(ECHO) [ RM ] $(SDK_DIR)
+	$(V)rm -rf $(SDK_DIR)
+
+#######################################
+# dependencies
+#######################################
+-include $(wildcard $(BUILD_DIR)/*.d)
 
 $(BUILD_DIR)/$(TARGET)_extflash.bin: $(BUILD_DIR)/$(TARGET).elf | $(BUILD_DIR)
-	$(V)$(ECHO) [ BIN ] $(notdir $@)
-	$(V)$(BIN) -j ._itcram_hot -j ._ram_exec -j ._extflash $< $(BUILD_DIR)/$(TARGET)_extflash.bin
-
+	$(BIN) -j ._itcram_hot -j ._ram_exec -j ._extflash -j .overlay_nes -j .overlay_gb -j .overlay_sms $< $(BUILD_DIR)/$(TARGET)_extflash.bin
 
