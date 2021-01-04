@@ -506,7 +506,7 @@ void odroid_audio_mute(bool mute)
 
 rg_app_desc_t * init(uint8_t load_state)
 {
-    odroid_system_init(APP_ID, AUDIO_SAMPLE_RATE);
+    odroid_system_init(ODROID_APPID_GB, AUDIO_SAMPLE_RATE);
     odroid_system_emu_init(&LoadState, &SaveState, &netplay_callback);
 
     // Hack: Use the same buffer twice
@@ -551,8 +551,7 @@ rg_app_desc_t * init(uint8_t load_state)
 
     emu_init();
 
-    //pal_set_dmg(odroid_settings_Palette_get());
-    pal_set_dmg(2);
+    pal_set_dmg(odroid_settings_Palette_get());
 
     // Don't load state if the pause button is held while booting
     uint32_t boot_buttons = GW_GetBootButtons();

@@ -245,13 +245,15 @@ void  _OSPI_Program(OSPI_HandleTypeDef *hospi, uint32_t address, const uint8_t *
   } while((status & 0x01) == 0x01);
 }
 
-void OSPI_Program(OSPI_HandleTypeDef *hospi, uint32_t address, const uint8_t *buffer, size_t buffer_size) {
-  unsigned iterations = buffer_size / 256;
+void OSPI_Program(OSPI_HandleTypeDef *hospi, uint32_t address, uint8_t *buffer, int32_t buffer_size)
+{
   unsigned dest_page = address / 256;
+  int i = 0;
 
-  for(int i = 0; i < iterations; i++) {
+  while (buffer_size > 0) {
     OSPI_NOR_WriteEnable(hospi);
     _OSPI_Program(hospi, (i + dest_page) * 256, buffer + (i * 256), buffer_size > 256 ? 256 : buffer_size);
+    i++;
     buffer_size -= 256;
   }
 }

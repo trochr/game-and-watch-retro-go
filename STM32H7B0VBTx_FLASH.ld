@@ -190,9 +190,19 @@ SECTIONS
     __extflash_game_rom_start__ = .;
     *(.extflash_game_rom)
     __extflash_game_rom_end__ = .;
+  } > EXTFLASH
+
+  /* This should *not* be included in extflash.bin */
+  ._configflash :
+  {
+    . = ALIGN(4K);
+    __configflash_start__ = .;
+    *(.configflash)
+    __configflash_end__ = .;
     __extflash_end__ = .;
   } > EXTFLASH
 
+  /* This should *not* be included in extflash.bin */
   ._saveflash :
   {
     __saveflash_start__ = .;

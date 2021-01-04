@@ -492,7 +492,7 @@ int app_main_nes(uint8_t load_state)
 
     memset(framebuffer1, 0x0, sizeof(framebuffer1));
     memset(framebuffer2, 0x0, sizeof(framebuffer2));
-    odroid_system_init(APP_ID, AUDIO_SAMPLE_RATE);
+    odroid_system_init(ODROID_APPID_NES, AUDIO_SAMPLE_RATE);
     odroid_system_emu_init(&LoadState, &SaveState, NULL);
 
     uint32_t buttons = GW_GetBootButtons();
