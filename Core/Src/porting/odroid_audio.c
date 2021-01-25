@@ -10,9 +10,15 @@ void odroid_audio_submit(short* stereoAudioBuffer, int frameCount)
 void odroid_audio_volume_set(int level)
 {
     audio_level = level;
+    odroid_settings_Volume_set(audio_level);
 }
 
 int odroid_audio_volume_get()
 {
     return audio_level;
+}
+
+void odroid_audio_init(int sample_rate)
+{
+    audio_level = odroid_settings_Volume_get();
 }

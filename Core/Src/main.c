@@ -214,8 +214,11 @@ int _write(int file, char *ptr, int len)
 void store_erase(const uint8_t *flash_ptr, size_t size)
 {
   // Only allow pointers in the SAVEFLASH allocated area
-  assert((flash_ptr >= &__SAVEFLASH_START__) && ((flash_ptr + size) <= &__SAVEFLASH_END__));
-
+  assert(
+    ((flash_ptr >= &__SAVEFLASH_START__) && ((flash_ptr + size) <= &__SAVEFLASH_END__)) ||
+    ((flash_ptr >= &__configflash_start__) && ((flash_ptr + size) <= &__configflash_end__))
+  );
+  
   // Convert mem mapped pointer to flash address
   uint32_t save_address = flash_ptr - &__EXTFLASH_START__;
 

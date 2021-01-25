@@ -186,6 +186,11 @@ SECTIONS
     __extflash_game_rom_start__ = .;
     *(.extflash_game_rom)
     __extflash_game_rom_end__ = .;
+    . = ALIGN(4K);
+    __configflash_start__ = .;
+    *(.configflash)
+    __configflash_end__ = .;
+
   } > EXTFLASH
 
   .overlay_nes __RAM_EMU_START__ : {
