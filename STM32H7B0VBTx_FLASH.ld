@@ -82,9 +82,11 @@ __RAM_EMU_START__    = __RAM_CORE_START__ + __RAM_CORE_LENGTH__;
 /* saveflash.ld sets __SAVEFLASH_LENGTH__ */
 INCLUDE build/saveflash.ld
 
-__EXTFLASH_LENGTH__ = DEFINED(__EXTFLASH_TOTAL_LENGTH__) ? __EXTFLASH_TOTAL_LENGTH__ - __SAVEFLASH_LENGTH__ : 1024K - __SAVEFLASH_LENGTH__ ;
-__SAVEFLASH_START__ = __EXTFLASH_START__ + __EXTFLASH_LENGTH__;
-__SAVEFLASH_END__   = __EXTFLASH_START__ + __EXTFLASH_LENGTH__ + __SAVEFLASH_LENGTH__;
+__CONFIGFLASH_LENGTH__ = 4096;
+
+__EXTFLASH_LENGTH__ = DEFINED(__EXTFLASH_TOTAL_LENGTH__) ? __EXTFLASH_TOTAL_LENGTH__ - __SAVEFLASH_LENGTH__ : 1024K - __CONFIGFLASH_LENGTH__ - __SAVEFLASH_LENGTH__ ;
+__CONFIGFLASH_START__ = __EXTFLASH_START__ + __EXTFLASH_LENGTH__;
+__SAVEFLASH_START__ = __CONFIGFLASH_START__ + __CONFIGFLASH_START__;
 
 /* Specify the memory areas */
 MEMORY
@@ -101,6 +103,7 @@ MEMORY
   /* FLASH */
   FLASH    (xr ) : ORIGIN = 0x08000000,          LENGTH =  __FLASH_LENGTH__
   EXTFLASH (xr ) : ORIGIN = __EXTFLASH_START__,  LENGTH = __EXTFLASH_LENGTH__
+  CONFIGFLASH(xr ) : ORIGIN = __CONFIGFLASH_START__, LENGTH = __CONFIGFLASH_LENGTH__
   SAVEFLASH(xr ) : ORIGIN = __SAVEFLASH_START__, LENGTH = __SAVEFLASH_LENGTH__
 }
 
@@ -186,11 +189,6 @@ SECTIONS
     __extflash_game_rom_start__ = .;
     *(.extflash_game_rom)
     __extflash_game_rom_end__ = .;
-    . = ALIGN(4K);
-    __configflash_start__ = .;
-    *(.configflash)
-    __configflash_end__ = .;
-
   } > EXTFLASH
 
   .overlay_nes __RAM_EMU_START__ : {
@@ -266,6 +264,14 @@ SECTIONS
     . = . + SIZEOF(.overlay_sms_bss);
   } >RAM_EMU
 
+  /* This should *not* be included in extflash.bin */
+  ._configflash :
+  {
+    . = ALIGN(4K);
+    __configflash_start__ = .;
+    *(.configflash)
+    __configflash_end__ = .;
+  } > CONFIGFLASH 
 
   ._saveflash (NOLOAD) :
   {
